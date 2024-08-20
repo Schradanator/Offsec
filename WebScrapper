@@ -1,0 +1,154 @@
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+import openpyxl
+import time
+
+requests_per_second = 5
+
+class WebScraperApp:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Web Scraper")
+        self.result_dict = {}
+
+
+
+        self.url_label = tk.Label(self.master, text="Enter URL:")
+        self.url_label.grid(row=0, column=0, padx=10, pady=10)
+
+
+        self.url_var = tk.StringVar()
+        self.url_var.set("")
+        self.url_entry = tk.Entry(self.master, textvariable=self.url_var, width=30)
+        self.url_entry.grid(row=0, column=0, padx=5, pady=5)
+
+
+        self.scrape_button = tk.Button(self.master, text="Scrape", command=self.start_scraping)
+        self.scrape_button.grid(row=0, rowspan=3, column=0, padx=35, pady=35)
+
+
+        self.result_text = tk.Text(self.master, height=1, width=50)
+        self.result_text.grid(row=1, rowspan=2, column=0, padx=10, pady=10)
+
+
+        #self.copy_button = tk.Button(self.master, text="Copy", command=self.copy_results)
+        #self.copy_button.grid(row=1, column=2, padx=10, pady=10)
+
+
+        #self.export_csv_button = tk.Button(self.master, text="Export to CSV", command=self.export_to_csv)
+        #self.export_csv_button.grid(row=4, rowspan=1, column=0, padx=10, pady=10)
+
+
+        self.export_txt_button = tk.Button(self.master, text="Export to Text", command=lambda: self.export_to_text(self.result_dict))
+        self.export_txt_button.grid(row=5, rowspan=1, column=0, padx=10, pady=10)
+
+
+        #self.export_excel_button = tk.Button(self.master, text="Export to Excel", command=self.export_to_excel)
+        #self.export_excel_button.grid(row=6, rowspan=1, column=0, padx=10, pady=10)
+
+
+        self.progress_bar = ttk.Progressbar(self.master, orient="horizontal", length=200, mode="determinate")
+        self.progress_bar.grid(row=8, column=0, columnspan=1, pady=10)
+        self.tag_var = tk.StringVar()
+        self.tag_entry = tk.Entry(self.master, textvariable=self.tag_var, width=10)
+        self.tag_entry.grid(row=9, column=0, padx=10, pady=10)
+
+
+        self.scraping_in_progress = False
+          # Flag to track if scraping is in progress
+    def start_scraping(self):
+      if self.scraping_in_progress:
+            print("Scraping is already in progress.")
+            return
+      self.progress_bar.config(mode="indeterminate")
+      self.progress_bar.start()
+      self.scrape()
+
+
+
+
+
+    def scrape(self):
+
+        url = self.url_var.get()
+        method = "GET"
+        tag_to_parse = self.tag_var.get()
+        if not tag_to_parse:
+            tag_to_parse = 'html'  # Set a default tag if input is empty
+
+
+        try:
+            self.scraping_in_progress = True 
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            elements = soup.find_all(tag_to_parse)
+
+
+            self.result_dict = {
+            'elements': [elements],
+            'links': [element.get('href') for element in elements if element.get('href')],
+            'content': [element.get_text() for element in elements]
+            }
+
+
+            print(self.result_dict)  # Add this line for debugging
+
+
+            self.show_done_message(self.result_dict)
+            requests_per_second = 5
+
+            for _ in range(10):  # Sending 10 requests in this example
+
+                # Introduce a delay to achieve the desired rate
+                time.sleep(1 / requests_per_second)
+        except Exception as e:
+            print(["Error: Unable to scrape data."])
+        finally:
+            self.scraping_in_progress = False
+
+    def show_done_message(self, result_dict):
+        print("Scraping is done.")
+        self.export_to_text(result_dict)
+    def display_results(self, result_dict):
+        # Placeholder for displaying results in the GUI
+        self.result_dict = result_dict
+
+
+
+
+    def export_to_text(self, result_dict):
+        # Prompt the user to choose a file path for export
+        filename = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+
+
+        if filename:
+            print("Exporting result_dict to text:")
+            print(result_dict)
+            with open(filename, 'w', encoding='utf-8') as txtfile:
+                # Write the elements, links, and content to the file
+                if 'elements' in result_dict:
+                    txtfile.write("Elements:\n")
+                    txtfile.write("\n".join(map(str, result_dict['elements'])))
+                if 'links' in result_dict:
+                    txtfile.write("\n\nLinks:\n")
+                    txtfile.write("\n".join(map(str, result_dict['links'])))
+                if 'content' in result_dict:
+                    txtfile.write("\n\nContent:\n")
+                    txtfile.write("\n".join(map(str, result_dict['content'])))
+
+
+            print(f"Exported to text: {filename}")
+
+
+
+
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = WebScraperApp(root)
+    root.mainloop()
